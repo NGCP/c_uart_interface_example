@@ -61,6 +61,7 @@
 
 #ifdef __linux__ 
 #include <signal.h>
+#include <sys/time.h>
 #endif
 
 #include <common/mavlink.h>

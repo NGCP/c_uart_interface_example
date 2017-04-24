@@ -1,10 +1,9 @@
 #include "autopilot_interface.h"
 #include <iostream>
 
-
 int main()
 {
-    Serial_Port* serial_port = new Serial_Port("COM22", 57600);
+    Serial_Port* serial_port = new Serial_Port("/dev/ttyACM0", 57600);
     Autopilot_Interface ai(serial_port);
     serial_port->start();
     ai.start();
@@ -27,8 +26,6 @@ int main()
         Mavlink_Messages messages = ai.current_messages;
         std::cout << "Mavlink Command: " << messages.mavlink_command_ack.command << " Result:: " << (int)messages.mavlink_command_ack.result << std::endl;
 
-        Sleep(25);
-
 
         //https://pixhawk.ethz.ch/mavlink/ look of mav_cmd to get enum for comamnds and params
         // Prepare command for off-board mode
@@ -38,8 +35,7 @@ int main()
         com.param6 = (float)100;
         com.param7 = (float)100;
         ai.send_command(com);
-        Sleep(25);
-
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 
     }

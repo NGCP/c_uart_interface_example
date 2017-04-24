@@ -43,8 +43,7 @@
  *
  * @author Trent Lukaczyk, <aerialhedgehog@gmail.com>
  * @author Jaycee Lock,    <jaycee.lock@gmail.com>
- * @author Lorenz Meier,   <lm@inf.ethz.ch>
- *
+ * @author Lorenz Meier,   <lm@inf.ethz.ch> *
  */
 
 
@@ -53,6 +52,7 @@
 // ------------------------------------------------------------------------------
 
 #include "serial_port.h"
+#include <string>
 
 
 // ----------------------------------------------------------------------------------
@@ -79,8 +79,7 @@ Serial_Port()
 Serial_Port::
 ~Serial_Port()
 {
-	// destroy mutex
-	pthread_mutex_destroy(&lock);
+
 }
 
 void
@@ -89,19 +88,14 @@ initialize_defaults()
 {
 	// Initialize attributes
 	debug  = false;
-	fd     = -1;
+	//fd     = -1;
 	status = SERIAL_PORT_CLOSED;
 
 	uart_name = (char*)"/dev/ttyUSB0";
 	baudrate  = 57600;
 
 	// Start mutex
-	int result = pthread_mutex_init(&lock, NULL);
-	if ( result != 0 )
-	{
-		printf("\n mutex init failed\n");
-		throw 1;
-	}
+
 }
 
 
@@ -140,6 +134,7 @@ read_message(mavlink_message_t &message)
 			fprintf(stderr,"%02x ", v);
 		}
 		lastStatus = status;
+        
 	}
 
 	// Couldn't read from port
@@ -220,10 +215,10 @@ open_serial()
 	// --------------------------------------------------------------------------
 	printf("OPEN PORT\n");
 
-	fd = _open_port(uart_name);
+	int result = _open_port(uart_name);
 
 	// Check success
-	if (fd == -1)
+	if (result == -1)
 	{
 		printf("failure, could not open port.\n");
 		throw EXIT_FAILURE;
@@ -272,13 +267,17 @@ close_serial()
 {
 	printf("CLOSE PORT\n");
 
+#ifdef __linux__
 	int result = close(fd);
 
 	if ( result )
 	{
 		fprintf(stderr,"WARNING: Error on port close (%i)\n", result );
 	}
-
+#endif
+#ifdef _WIN32
+    CloseHandle(fd);
+#endif
 	status = false;
 
 	printf("\n");
@@ -328,6 +327,8 @@ int
 Serial_Port::
 _open_port(const char* port)
 {
+
+#ifdef __linux__
 	// Open serial port
 	// O_RDWR - Read and write
 	// O_NOCTTY - Ignore special chars like CTRL-C
@@ -348,6 +349,43 @@ _open_port(const char* port)
 
 	// Done!
 	return fd;
+#endif
+#ifdef _WIN32
+    std::string comPortInput = port;
+#ifdef UNICODE	//convert multybyte string to LPCWSTR
+    wchar_t* str = new wchar_t[comPortInput.length() * 2];
+    MultiByteToWideChar(CP_ACP, 0, comPortInput.c_str(), -1, str, comPortInput.length() * 2);
+    LPCWSTR comport = str;
+#else
+    //open up serial port
+    const char* comport = comPortInput.c_str();
+#endif
+
+#ifdef UNICODE //clean up multybyte string to LPCWSTR
+    delete str;
+#endif
+    char port_name[80];
+    sprintf(port_name, "\\\\.\\%s", comport);
+    fd = CreateFileA((LPCSTR)port_name,
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        0,
+        OPEN_EXISTING,
+        0,
+        0);
+    if (fd == INVALID_HANDLE_VALUE)
+    {
+        if (GetLastError() == ERROR_FILE_NOT_FOUND)
+        {
+            //serial port does not exist.
+            printf("comport not found\n");
+            return -1;
+        }
+        // some other error occured.
+        printf("Unknown error\n");
+        return -1;
+    }
+#endif
 }
 
 // ------------------------------------------------------------------------------
@@ -358,6 +396,7 @@ bool
 Serial_Port::
 _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control)
 {
+#ifdef __linux__
 	// Check file descriptor
 	if(!isatty(fd))
 	{
@@ -490,6 +529,47 @@ _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_c
 		fprintf(stderr, "\nERROR: could not set configuration of fd %d\n", fd);
 		return false;
 	}
+#endif
+
+#ifdef _WIN32
+    DCB dcbSerialParams = { 0 };
+
+    dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+
+    if (!GetCommState(fd, &dcbSerialParams))
+    {
+        //error getting state
+        printf("Error getting state\n");
+        return -1;
+    }
+    
+    dcbSerialParams.BaudRate = baud;
+    dcbSerialParams.ByteSize = 8;
+    dcbSerialParams.StopBits = stop_bits;
+    dcbSerialParams.Parity = parity;
+
+    if (!SetCommState(fd, &dcbSerialParams))
+    {
+        //error setting serial port state
+        printf("Error setting serial port state\n");
+        return 0;
+    }
+
+    COMMTIMEOUTS timeouts = { 0 };
+
+    timeouts.ReadIntervalTimeout = 50;
+    timeouts.ReadTotalTimeoutConstant = 50;
+    timeouts.ReadTotalTimeoutMultiplier = 10;
+    timeouts.WriteTotalTimeoutConstant = 50;
+    timeouts.WriteTotalTimeoutMultiplier = 10;
+
+    if (!SetCommTimeouts(fd, &timeouts))
+    {
+        //error occureeed
+        printf("Setting up times outs failed");
+        return 0;
+    }
+#endif
 
 	// Done!
 	return true;
@@ -504,15 +584,18 @@ int
 Serial_Port::
 _read_port(uint8_t &cp)
 {
-
-	// Lock
-	pthread_mutex_lock(&lock);
-
+    serial_mutex.lock();
+#ifdef __linux__
 	int result = read(fd, &cp, 1);
-
-	// Unlock
-	pthread_mutex_unlock(&lock);
-
+    // Wait until all data has been written
+    tcdrain(fd);
+#endif
+#ifdef _WIN32
+    DWORD dwBytesRead = 0;
+    ReadFile(fd, &cp, 1, &dwBytesRead, NULL);
+    int result = (int)dwBytesRead;
+#endif
+    serial_mutex.unlock();
 	return result;
 }
 
@@ -524,20 +607,20 @@ int
 Serial_Port::
 _write_port(char *buf, unsigned len)
 {
-
-	// Lock
-	pthread_mutex_lock(&lock);
-
+    serial_mutex.lock();
+#ifdef __linux__
 	// Write packet via serial link
 	const int bytesWritten = static_cast<int>(write(fd, buf, len));
-
-	// Wait until all data has been written
-	tcdrain(fd);
-
-	// Unlock
-	pthread_mutex_unlock(&lock);
-
-
+    // Wait until all data has been written
+    tcdrain(fd);
+#endif
+#ifdef _WIN32
+    DWORD dwBytesWritten = 0;
+    int bytesWritten = 0;
+    WriteFile(fd, buf, len, &dwBytesWritten, NULL);
+    bytesWritten = (int)dwBytesWritten;
+#endif
+    serial_mutex.unlock();
 	return bytesWritten;
 }
 

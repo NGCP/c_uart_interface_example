@@ -44,7 +44,9 @@
  * @author Trent Lukaczyk, <aerialhedgehog@gmail.com>
  * @author Jaycee Lock,    <jaycee.lock@gmail.com>
  * @author Lorenz Meier,   <lm@inf.ethz.ch>
- *
+ * 
+ * @2017 Added windows support and c++11 threads
+ * @Michael Wallace
  */
 
 #ifndef SERIAL_PORT_H_
@@ -54,6 +56,12 @@
 //   Includes
 // ------------------------------------------------------------------------------
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#endif
+
+#ifdef __linux__
 #include <cstdlib>
 #include <stdio.h>   // Standard input/output definitions
 #include <unistd.h>  // UNIX standard function definitions
@@ -61,8 +69,15 @@
 #include <termios.h> // POSIX terminal control definitions
 #include <pthread.h> // This uses POSIX Threads
 #include <signal.h>
+#endif
 
+#include <cstdlib>
+#include <stdio.h>   // Standard input/output definitions
+#include <fcntl.h>   // File control definitions
+#include <stdint.h>  //uint16_t, ect
 #include <common/mavlink.h>
+#include <thread> 
+#include <mutex>
 
 
 // ------------------------------------------------------------------------------
@@ -133,10 +148,17 @@ public:
 	void handle_quit( int sig );
 
 private:
+    std::mutex serial_mutex;
 
+
+#ifdef _WIN32
+    HANDLE fd;
+#endif
+#ifdef __linux__
 	int  fd;
+#endif
 	mavlink_status_t lastStatus;
-	pthread_mutex_t  lock;
+	
 
 	int  _open_port(const char* port);
 	bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);

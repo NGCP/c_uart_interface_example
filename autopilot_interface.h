@@ -45,6 +45,8 @@
  * @author Jaycee Lock,    <jaycee.lock@gmail.com>
  * @author Lorenz Meier,   <lm@inf.ethz.ch>
  *
+ * @2017 Added  c++11 threads and send_command method with command_ack message
+ * @Michael Wallace
  */
 
 
@@ -57,11 +59,13 @@
 
 #include "serial_port.h"
 
+#ifdef __linux__ 
 #include <signal.h>
-#include <time.h>
-#include <sys/time.h>
+#endif
 
 #include <common/mavlink.h>
+#include <thread>
+#include <chrono>
 
 // ------------------------------------------------------------------------------
 //   Defines
@@ -204,7 +208,7 @@ struct Mavlink_Messages {
 	// Attitude
 	mavlink_attitude_t attitude;
 
-	// System Parameters?
+    mavlink_command_ack_t mavlink_command_ack;
 
 
 	// Time Stamps
@@ -241,7 +245,7 @@ class Autopilot_Interface
 
 public:
 
-	Autopilot_Interface();
+    Autopilot_Interface() { ; }
 	Autopilot_Interface(Serial_Port *serial_port_);
 	~Autopilot_Interface();
 
@@ -272,6 +276,8 @@ public:
 
 	void handle_quit( int sig );
 
+    bool send_command(mavlink_command_long_t mavlink_command);
+
 
 private:
 
@@ -279,8 +285,8 @@ private:
 
 	bool time_to_exit;
 
-	pthread_t read_tid;
-	pthread_t write_tid;
+	std::thread read_tid;
+	std::thread write_tid;
 
 	mavlink_set_position_target_local_ned_t current_setpoint;
 

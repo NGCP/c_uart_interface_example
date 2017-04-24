@@ -53,17 +53,40 @@
 // ------------------------------------------------------------------------------
 
 #include "autopilot_interface.h"
+#ifdef _WIN32
+#include <WinSock2.h>//struct timeval
+int gettimeofday(struct timeval * tp, struct timezone * tzp)
+{
+    // Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
+    // This magic number is the number of 100 nanosecond intervals since January 1, 1601 (UTC)
+    // until 00:00:00 January 1, 1970 
+    static const uint64_t EPOCH = ((uint64_t)116444736000000000ULL);
 
+    SYSTEMTIME  system_time;
+    FILETIME    file_time;
+    uint64_t    time;
 
+    GetSystemTime(&system_time);
+    SystemTimeToFileTime(&system_time, &file_time);
+    time = ((uint64_t)file_time.dwLowDateTime);
+    time += ((uint64_t)file_time.dwHighDateTime) << 32;
+
+    tp->tv_sec = (long)((time - EPOCH) / 10000000L);
+    tp->tv_usec = (long)(system_time.wMilliseconds * 1000);
+    return 0;
+}
+#endif
 // ----------------------------------------------------------------------------------
 //   Time
 // ------------------- ---------------------------------------------------------------
 uint64_t
 get_time_usec()
 {
+    //@TODO fix to windows& unix time stamps
 	static struct timeval _time_stamp;
 	gettimeofday(&_time_stamp, NULL);
 	return _time_stamp.tv_sec*1000000 + _time_stamp.tv_usec;
+    return 0;
 }
 
 
@@ -197,9 +220,6 @@ Autopilot_Interface(Serial_Port *serial_port_)
 	control_status = 0;      // whether the autopilot is in offboard control mode
 	time_to_exit   = false;  // flag to signal thread exit
 
-	read_tid  = 0; // read thread id
-	write_tid = 0; // write thread id
-
 	system_id    = 0; // system id
 	autopilot_id = 0; // autopilot component id
 	companion_id = 0; // companion computer component id
@@ -239,7 +259,7 @@ read_messages()
 	Time_Stamps this_timestamps;
 
 	// Blocking wait for new data
-	while ( !received_all and !time_to_exit )
+	while ( !received_all && !time_to_exit )
 	{
 		// ----------------------------------------------------------------------
 		//   READ MESSAGE
@@ -351,6 +371,12 @@ read_messages()
 					this_timestamps.attitude = current_messages.time_stamps.attitude;
 					break;
 				}
+                case MAVLINK_MSG_ID_COMMAND_ACK:
+                {
+                    mavlink_msg_command_ack_decode(&message, &(current_messages.mavlink_command_ack));
+                    break;
+                        
+                }
 
 				default:
 				{
@@ -379,7 +405,7 @@ read_messages()
 
 		// give the write thread time to use the port
 		if ( writing_status > false ) {
-			usleep(100); // look for components of batches at 10kHz
+            std::this_thread::sleep_for(std::chrono::microseconds(100)); // look for components of batches at 10kHz
 		}
 
 	} // end: while not received all
@@ -419,7 +445,7 @@ write_setpoint()
 	mavlink_set_position_target_local_ned_t sp = current_setpoint;
 
 	// double check some system parameters
-	if ( not sp.time_boot_ms )
+	if ( !sp.time_boot_ms )
 		sp.time_boot_ms = (uint32_t) (get_time_usec()/1000);
 	sp.target_system    = system_id;
 	sp.target_component = autopilot_id;
@@ -574,8 +600,8 @@ start()
 
 	printf("START READ THREAD \n");
 
-	result = pthread_create( &read_tid, NULL, &start_autopilot_interface_read_thread, this );
-	if ( result ) throw result;
+	std::thread thrTemp1(start_autopilot_interface_read_thread,this);
+    read_tid.swap(thrTemp1);	
 
 	// now we're reading messages
 	printf("\n");
@@ -587,11 +613,11 @@ start()
 
 	printf("CHECK FOR MESSAGES\n");
 
-	while ( not current_messages.sysid )
+	while ( !current_messages.sysid )
 	{
 		if ( time_to_exit )
 			return;
-		usleep(500000); // check at 2Hz
+        std::this_thread::sleep_for(std::chrono::microseconds(500000)); // check at 2Hz
 	}
 
 	printf("Found\n");
@@ -610,14 +636,14 @@ start()
 	// In which case set the id's manually.
 
 	// System ID
-	if ( not system_id )
+	if (!system_id )
 	{
 		system_id = current_messages.sysid;
 		printf("GOT VEHICLE SYSTEM ID: %i\n", system_id );
 	}
 
 	// Component ID
-	if ( not autopilot_id )
+	if (!autopilot_id )
 	{
 		autopilot_id = current_messages.compid;
 		printf("GOT AUTOPILOT COMPONENT ID: %i\n", autopilot_id);
@@ -630,13 +656,15 @@ start()
 	// --------------------------------------------------------------------------
 
 	// Wait for initial position ned
-	while ( not ( current_messages.time_stamps.local_position_ned &&
+    
+	while (!( current_messages.time_stamps.local_position_ned &&
 				  current_messages.time_stamps.attitude            )  )
 	{
 		if ( time_to_exit )
 			return;
-		usleep(500000);
+        std::this_thread::sleep_for(std::chrono::microseconds(500000));
 	}
+    
 
 	// copy initial position ned
 	Mavlink_Messages local_data = current_messages;
@@ -661,12 +689,13 @@ start()
 	// --------------------------------------------------------------------------
 	printf("START WRITE THREAD \n");
 
-	result = pthread_create( &write_tid, NULL, &start_autopilot_interface_write_thread, this );
-	if ( result ) throw result;
+    std::thread thrTemp2(&start_autopilot_interface_write_thread,this);
+    write_tid.swap(thrTemp2);
+	
 
 	// wait for it to be started
-	while ( not writing_status )
-		usleep(100000); // 10Hz
+	while (!writing_status )
+        std::this_thread::sleep_for(std::chrono::microseconds(100000)); // 10Hz
 
 	// now we're streaming setpoint commands
 	printf("\n");
@@ -694,8 +723,8 @@ stop()
 	time_to_exit = true;
 
 	// wait for exit
-	pthread_join(read_tid ,NULL);
-	pthread_join(write_tid,NULL);
+    read_tid.join();
+    write_tid.join();
 
 	// now the read and write threads are closed
 	printf("\n");
@@ -732,7 +761,7 @@ void
 Autopilot_Interface::
 start_write_thread(void)
 {
-	if ( not writing_status == false )
+	if (!writing_status == false )
 	{
 		fprintf(stderr,"write thread already running\n");
 		return;
@@ -768,7 +797,31 @@ handle_quit( int sig )
 }
 
 
+bool 
+Autopilot_Interface::
+send_command(mavlink_command_long_t mavlink_command)
+{
+    mavlink_command.target_system = system_id;
+    mavlink_command.target_component = autopilot_id;
+    mavlink_command.confirmation = true;
+    mavlink_message_t message;
+    mavlink_msg_command_long_encode(system_id, companion_id, &message, &mavlink_command);
 
+
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
+
+    // do the write
+    int len = write_message(message);
+
+    // check the write
+    if (len <= 0) {
+        fprintf(stderr, "WARNING: could not send MAVLINK_COMMAND \n");
+        return false;
+    }
+    return true;
+}
 // ------------------------------------------------------------------------------
 //   Read Thread
 // ------------------------------------------------------------------------------
@@ -781,7 +834,7 @@ read_thread()
 	while ( ! time_to_exit )
 	{
 		read_messages();
-		usleep(100000); // Read batches at 10Hz
+        std::this_thread::sleep_for(std::chrono::microseconds(100000)); // Read batches at 10Hz
 	}
 
 	reading_status = false;
@@ -821,7 +874,7 @@ write_thread(void)
 	// otherwise it will go into fail safe
 	while ( !time_to_exit )
 	{
-		usleep(250000);   // Stream at 4Hz
+        std::this_thread::sleep_for(std::chrono::microseconds(250000));   // Stream at 4Hz
 		write_setpoint();
 	}
 

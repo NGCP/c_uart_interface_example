@@ -11,8 +11,10 @@ include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/mavlink/include/mavlink/v1.0)
 # Add the exe
 add_executable(autopilot_serial
  ${CMAKE_CURRENT_SOURCE_DIR}/Source.cpp
+ autopilot_interface.h
  autopilot_interface.cpp
- serial_port.cpp
+ serial_port.h
+ serial_port.cpp 
 )
 
 

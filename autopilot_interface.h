@@ -278,6 +278,7 @@ public:
 	void handle_quit( int sig );
 
     bool send_command(mavlink_command_long_t mavlink_command);
+	bool send_command(mavlink_command_int_t mavlink_command);
 
 
 private:

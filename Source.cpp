@@ -30,14 +30,20 @@ int main()
         //https://pixhawk.ethz.ch/mavlink/ look of mav_cmd to get enum for comamnds and params
         // Prepare command for off-board mode
         mavlink_command_long_t com;
-        com.command = MAV_CMD_NAV_WAYPOINT;
+        com.command = MAV_CMD_NAV_TAKEOFF;//NOT A LONG, but it will internally convert to int any ways for example of long
         com.param5 = (float)100;
         com.param6 = (float)100;
         com.param7 = (float)100;
         ai.send_command(com);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-
+		mavlink_command_int_t com2;
+		com2.command = MAV_CMD_NAV_WAYPOINT;
+		com2.x = 10000000;
+		com2.y = 20000000;
+		com2.z = 30000000;
+		ai.send_command(com2);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     // ai.disable_offboard_control();
     ai.stop();

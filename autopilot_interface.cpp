@@ -822,6 +822,33 @@ send_command(mavlink_command_long_t mavlink_command)
     }
     return true;
 }
+
+bool
+Autopilot_Interface::
+send_command(mavlink_command_int_t mavlink_command)
+{
+	mavlink_command.target_system = system_id;
+	mavlink_command.target_component = autopilot_id;
+	//mavlink_command.confirmation = true;
+	mavlink_message_t message;
+	mavlink_msg_command_int_encode(system_id, companion_id, &message, &mavlink_command);
+
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if (len <= 0) {
+		fprintf(stderr, "WARNING: could not send MAVLINK_COMMAND \n");
+		return false;
+	}
+	return true;
+}
+
 // ------------------------------------------------------------------------------
 //   Read Thread
 // ------------------------------------------------------------------------------

@@ -209,7 +209,11 @@ struct Mavlink_Messages {
 	// Attitude
 	mavlink_attitude_t attitude;
 
+	// ack of commands
     mavlink_command_ack_t mavlink_command_ack;
+
+	// ack of missions cmd
+	mavlink_mission_ack_t mavlink_mission_ack;
 
 
 	// Time Stamps
@@ -279,6 +283,8 @@ public:
 
     bool send_command(mavlink_command_long_t mavlink_command);
 	bool send_command(mavlink_command_int_t mavlink_command);
+	bool send_mission_cmd(mavlink_mission_item_t mavlink_mission_item);
+	bool send_waypoint_count(mavlink_mission_count_t mavlink_mission_count);
 
 
 private:

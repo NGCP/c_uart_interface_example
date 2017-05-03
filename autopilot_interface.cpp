@@ -377,6 +377,11 @@ read_messages()
                     break;
                         
                 }
+				case MAVLINK_MSG_ID_MISSION_ACK:
+				{
+					mavlink_msg_mission_ack_decode(&message, &(current_messages.mavlink_mission_ack));
+					break;
+				}
 
 				default:
 				{
@@ -651,20 +656,6 @@ start()
 	}
 
 
-	// --------------------------------------------------------------------------
-	//   GET INITIAL POSITION
-	// --------------------------------------------------------------------------
-
-	// Wait for initial position ned
-    
-	while (!( current_messages.time_stamps.local_position_ned &&
-				  current_messages.time_stamps.attitude            )  )
-	{
-		if ( time_to_exit )
-			return;
-        std::this_thread::sleep_for(std::chrono::microseconds(500000));
-	}
-    
 
 	// copy initial position ned
 	Mavlink_Messages local_data = current_messages;
@@ -796,6 +787,56 @@ handle_quit( int sig )
 
 }
 
+bool 
+Autopilot_Interface::
+send_mission_cmd(mavlink_mission_item_t mavlink_mission_item)
+{
+	mavlink_mission_item.target_system = system_id;
+	mavlink_mission_item.target_component = autopilot_id;
+	mavlink_mission_item.frame = MAV_FRAME_GLOBAL;
+	mavlink_mission_item.autocontinue = true;
+	mavlink_mission_item.current = 1;
+	mavlink_message_t message;
+	mavlink_msg_mission_item_encode(system_id, companion_id, &message, &mavlink_mission_item);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if (len <= 0) {
+		fprintf(stderr, "WARNING: could not send MAVLINK_MISSION_CMD \n");
+		return false;
+	}
+	return true;
+}
+
+bool 
+Autopilot_Interface::
+send_waypoint_count(mavlink_mission_count_t mavlink_mission_count)
+{
+	mavlink_mission_count.target_system = system_id;
+	mavlink_mission_count.target_component = autopilot_id;
+	mavlink_message_t message;
+	mavlink_msg_mission_count_encode(system_id, autopilot_id, &message, &mavlink_mission_count);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if (len <= 0) {
+		fprintf(stderr, "WARNING: could not send MAVLINK_COMMAND \n");
+		return false;
+	}
+	return true;
+}
 
 bool 
 Autopilot_Interface::

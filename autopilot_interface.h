@@ -153,6 +153,8 @@ struct Time_Stamps
 	uint64_t position_target_global_int;
 	uint64_t highres_imu;
 	uint64_t attitude;
+    uint64_t cmd_ack;
+    uint64_t mission_cmd_ack;
 
 	void
 	reset_timestamps()

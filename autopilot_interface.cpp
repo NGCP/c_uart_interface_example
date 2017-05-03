@@ -374,12 +374,16 @@ read_messages()
                 case MAVLINK_MSG_ID_COMMAND_ACK:
                 {
                     mavlink_msg_command_ack_decode(&message, &(current_messages.mavlink_command_ack));
+                    current_messages.time_stamps.cmd_ack = get_time_usec();
+                    this_timestamps.cmd_ack = current_messages.time_stamps.cmd_ack;
                     break;
                         
                 }
 				case MAVLINK_MSG_ID_MISSION_ACK:
 				{
 					mavlink_msg_mission_ack_decode(&message, &(current_messages.mavlink_mission_ack));
+                    current_messages.time_stamps.mission_cmd_ack = get_time_usec();
+                    this_timestamps.mission_cmd_ack = current_messages.time_stamps.mission_cmd_ack;
 					break;
 				}
 

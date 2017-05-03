@@ -7,7 +7,7 @@ int main()
     Autopilot_Interface ai(serial_port);
     serial_port->start();
     ai.start();
-    ai.enable_offboard_control(); //Arduplane will fail offboard control you cant not change local or global ned position
+    //ai.enable_offboard_control(); //Arduplane will fail offboard control you cant not change local or global ned position
     
     Time_Stamps recentTimeStamp;
     recentTimeStamp.reset_timestamps();
@@ -15,30 +15,20 @@ int main()
     bool servoCommandAccepted = false;
     bool waypointCommandAccepted = false;
     
-    std::wcout << "Sleeping for 2 seconds" << std::endl;
-#ifdef WIN32
-    Sleep(2000);
-#else
-    sleep(2000);
-#endif
-    
     std::chrono::system_clock::time_point begging = std::chrono::system_clock::now();
     while (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - begging) < std::chrono::milliseconds(25000))
     {
         Mavlink_Messages messages = ai.current_messages;
 
-        if (recentTimeStamp.cmd_ack < messages.time_stamps.cmd_ack)
-        {
             std::cout << "Mavlink Command: " << messages.mavlink_command_ack.command << " Result:: " << (int)messages.mavlink_command_ack.result << std::endl;
             recentTimeStamp.cmd_ack = messages.time_stamps.cmd_ack;
             if (messages.mavlink_command_ack.command == MAV_CMD_DO_SET_SERVO && messages.mavlink_command_ack.result == MAV_RESULT_ACCEPTED)
             {
                 servoCommandAccepted = true;
             }
-        }
+        
 
-        if (recentTimeStamp.mission_cmd_ack < messages.time_stamps.mission_cmd_ack)
-        {
+   
             //doesnt look like you can check what mission cmd this is responding to
             std::cout << "Mavlink Mission: " << (int)messages.mavlink_mission_ack.type << std::endl;
             recentTimeStamp.mission_cmd_ack = messages.time_stamps.mission_cmd_ack;
@@ -46,10 +36,17 @@ int main()
             {
                 waypointCommandAccepted = true;
             }
-        }
+        
 
-        if (waypointCommandAccepted)
+        if (true)//waypointCommandAccepted)
         {
+			//you need to tell the pixhawk how many waypoints to accept
+			mavlink_mission_count_t mission_count;
+			mission_count.count = 1;
+			ai.send_waypoint_count(mission_count);
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+			//send waypoints
             mavlink_mission_item_t mission_item;
             mission_item.command = MAV_CMD_NAV_WAYPOINT;
             mission_item.param1 = 0;//hold time in decimal second IGNORED by ArduPlane
@@ -61,21 +58,22 @@ int main()
             mission_item.z = 0;//altitude
             mission_item.seq = 0;//waypoint number
             ai.send_mission_cmd(mission_item);
-            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			std::cout << "Sent" << std::endl;
         }
 
-        if (!servoCommandAccepted)
+        if (true)
         {
-            mavlink_command_long_t cmd_item;
+            mavlink_command_int_t cmd_item;
             cmd_item.command = MAV_CMD_DO_SET_SERVO;
-            cmd_item.param1 = 1.0;//server number
-            cmd_item.param2 = 15000;//pwm microseconds 1000 to 2000 typicaly
+            cmd_item.param1 = 10;//server number
+            cmd_item.param2 = 1500;//pwm microseconds 1000 to 2000 typicaly
             ai.send_command(cmd_item);
             std::this_thread::sleep_for(std::chrono::milliseconds(150));
         }
 		
     }
-    ai.disable_offboard_control();
+   // ai.disable_offboard_control();
     ai.stop();
     serial_port->stop();
 

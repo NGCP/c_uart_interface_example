@@ -659,22 +659,19 @@ start()
 		printf("\n");
 	}
 
+	printf("Waiting for GPS message...\n");
+	//check for gps
+	while (!(current_messages.time_stamps.global_position_int))
+	{
+#ifdef _WIN32		
+		Sleep(100);
+#else
+		usleep(100);
+#endif
+	}
 
+	printf("GPS location found\n");
 
-	// copy initial position ned
-	Mavlink_Messages local_data = current_messages;
-	initial_position.x        = local_data.local_position_ned.x;
-	initial_position.y        = local_data.local_position_ned.y;
-	initial_position.z        = local_data.local_position_ned.z;
-	initial_position.vx       = local_data.local_position_ned.vx;
-	initial_position.vy       = local_data.local_position_ned.vy;
-	initial_position.vz       = local_data.local_position_ned.vz;
-	initial_position.yaw      = local_data.attitude.yaw;
-	initial_position.yaw_rate = local_data.attitude.yawspeed;
-
-	printf("INITIAL POSITION XYZ = [ %.4f , %.4f , %.4f ] \n", initial_position.x, initial_position.y, initial_position.z);
-	printf("INITIAL POSITION YAW = %.4f \n", initial_position.yaw);
-	printf("\n");
 
 	// we need this before starting the write thread
 

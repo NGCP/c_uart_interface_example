@@ -20,6 +20,12 @@ int main()
     {
         Mavlink_Messages messages = ai.current_messages;
 
+		//@TODO
+		//this alt conversion seems to be wrong
+		std::cout << "Global Position: long" << (messages.global_position_int.lon / 1E7) <<
+			" lat: " << (messages.global_position_int.lat / 1E7)<<
+			" alt: " << (messages.global_position_int.alt / 1E3) << std::endl;
+
             std::cout << "Mavlink Command: " << messages.mavlink_command_ack.command << " Result:: " << (int)messages.mavlink_command_ack.result << std::endl;
             recentTimeStamp.cmd_ack = messages.time_stamps.cmd_ack;
             if (messages.mavlink_command_ack.command == MAV_CMD_DO_SET_SERVO && messages.mavlink_command_ack.result == MAV_RESULT_ACCEPTED)
@@ -44,7 +50,7 @@ int main()
 			mavlink_mission_count_t mission_count;
 			mission_count.count = 1;
 			ai.send_waypoint_count(mission_count);
-			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 			//send waypoints
             mavlink_mission_item_t mission_item;
@@ -58,16 +64,19 @@ int main()
             mission_item.z = 0;//altitude
             mission_item.seq = 0;//waypoint number
             ai.send_mission_cmd(mission_item);
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			std::cout << "Sent" << std::endl;
         }
 
         if (true)
         {
-            mavlink_command_int_t cmd_item;
+			static bool flipflop = true;
+            mavlink_command_long_t cmd_item;
             cmd_item.command = MAV_CMD_DO_SET_SERVO;
-            cmd_item.param1 = 10;//server number
-            cmd_item.param2 = 1500;//pwm microseconds 1000 to 2000 typicaly
+            cmd_item.param1 = 9;//server number
+			int pwm = flipflop ? 1000 : 2000;
+			flipflop = !flipflop;
+            cmd_item.param2 = pwm;//pwm microseconds 1000 to 2000 typicaly
             ai.send_command(cmd_item);
             std::this_thread::sleep_for(std::chrono::milliseconds(150));
         }

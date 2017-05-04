@@ -386,7 +386,35 @@ read_messages()
                     this_timestamps.mission_cmd_ack = current_messages.time_stamps.mission_cmd_ack;
 					break;
 				}
+				case MAVLINK_MSG_ID_MISSION_ITEM:
+				{
+					mavlink_msg_mission_item_decode(&message, &(current_messages.mavlink_mission_item));
+					current_messages.time_stamps.mission_item = get_time_usec();
+					this_timestamps.mission_item = current_messages.time_stamps.mission_item;
+					break;
+				}
+				case MAVLINK_MSG_ID_MISSION_CURRENT:
+				{
+					mavlink_msg_mission_current_decode(&message, &(current_messages.mavlink_mission_current));
+					current_messages.time_stamps.mission_current = get_time_usec();
+					this_timestamps.mission_current = current_messages.time_stamps.mission_current;
+					break;
+				}
+				case MAVLINK_MSG_ID_MISSION_COUNT:
+				{
+					mavlink_msg_mission_count_decode(&message, &(current_messages.mavlink_mission_count));
+					current_messages.time_stamps.mission_count = get_time_usec();
+					this_timestamps.mission_count = current_messages.time_stamps.mission_count;
+					break;
+				}
 
+				case MAVLINK_MSG_ID_MISSION_ITEM_REACHED:
+				{
+					mavlink_msg_mission_item_reached_decode(&message, &(current_messages.malink_mission_item_reached));
+					current_messages.time_stamps.mission_item_reached = get_time_usec();
+					this_timestamps.mission_item_reached = current_messages.time_stamps.mission_item_reached;
+					break;
+				}
 				default:
 				{
 					// printf("Warning, did not handle message id %i\n",message.msgid);

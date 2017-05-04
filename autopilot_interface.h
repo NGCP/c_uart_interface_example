@@ -155,7 +155,10 @@ struct Time_Stamps
 	uint64_t attitude;
     uint64_t cmd_ack;
     uint64_t mission_cmd_ack;
-
+	uint64_t mission_item;
+	uint64_t mission_current;
+	uint64_t mission_count;
+	uint64_t mission_item_reached;
 	void
 	reset_timestamps()
 	{
@@ -217,6 +220,17 @@ struct Mavlink_Messages {
 	// ack of missions cmd
 	mavlink_mission_ack_t mavlink_mission_ack;
 
+	//mission item return from mission request by sending seq number
+	mavlink_mission_item_t mavlink_mission_item;
+
+	//mission current seq number
+	mavlink_mission_current_t mavlink_mission_current;
+
+	//mission count returned from mission request list only seq numbers
+	mavlink_mission_count_t mavlink_mission_count;
+
+	//mission item reached
+	mavlink_mission_item_reached_t malink_mission_item_reached;
 
 	// Time Stamps
 	Time_Stamps time_stamps;

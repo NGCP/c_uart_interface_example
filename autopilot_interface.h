@@ -301,6 +301,10 @@ public:
 	bool send_command(mavlink_command_int_t mavlink_command);
 	bool send_mission_cmd(mavlink_mission_item_t mavlink_mission_item);
 	bool send_waypoint_count(mavlink_mission_count_t mavlink_mission_count);
+	bool send_mission_request(mavlink_mission_request_t mavlink_mission_request);
+	bool send_mission_request_list(mavlink_mission_request_list_t mavlink_mission_request_list);
+	bool send_mission_set_current(mavlink_mission_set_current_t mavlink_mission_set_current);
+	bool send_mission_clear_all(mavlink_mission_clear_all_t mavlink_mission_clear_all);
 
 
 private:

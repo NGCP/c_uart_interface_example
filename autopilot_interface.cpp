@@ -919,6 +919,102 @@ send_command(mavlink_command_int_t mavlink_command)
 	return true;
 }
 
+
+bool
+Autopilot_Interface::
+send_mission_request(mavlink_mission_request_t mavlink_mission_request){
+	mavlink_mission_request.target_system = system_id;
+	mavlink_mission_request.target_component = autopilot_id;
+	mavlink_message_t message;
+	mavlink_msg_mission_request_encode(system_id, autopilot_id, &message, &mavlink_mission_request);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if (len <= 0) {
+		fprintf(stderr, "WARNING: could not send MAVLINK_COMMAND \n");
+		return false;
+	}
+	return true;
+}
+
+
+bool
+Autopilot_Interface::
+send_mission_request_list(mavlink_mission_request_list_t mavlink_mission_request_list){
+	mavlink_mission_request_list.target_system = system_id;
+	mavlink_mission_request_list.target_component = autopilot_id;
+	mavlink_message_t message;
+	mavlink_msg_mission_request_list_encode(system_id, autopilot_id, &message, &mavlink_mission_request_list);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if (len <= 0) {
+		fprintf(stderr, "WARNING: could not send MAVLINK_COMMAND \n");
+		return false;
+	}
+	return true;
+}
+
+
+bool
+Autopilot_Interface::
+send_mission_set_current(mavlink_mission_set_current_t mavlink_mission_set_current){
+	mavlink_mission_set_current.target_system = system_id;
+	mavlink_mission_set_current.target_component = autopilot_id;
+	mavlink_message_t message;
+	mavlink_msg_mission_set_current_encode(system_id, autopilot_id, &message, &mavlink_mission_set_current);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if (len <= 0) {
+		fprintf(stderr, "WARNING: could not send MAVLINK_COMMAND \n");
+		return false;
+	}
+	return true;
+}
+
+
+bool
+Autopilot_Interface::
+send_mission_clear_all(mavlink_mission_clear_all_t mavlink_mission_clear_all){
+	mavlink_mission_clear_all.target_system = system_id;
+	mavlink_mission_clear_all.target_component = autopilot_id;
+	mavlink_message_t message;
+	mavlink_msg_mission_clear_all_encode(system_id, autopilot_id, &message, &mavlink_mission_clear_all);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if (len <= 0) {
+		fprintf(stderr, "WARNING: could not send MAVLINK_COMMAND \n");
+		return false;
+	}
+	return true;
+}
+
 // ------------------------------------------------------------------------------
 //   Read Thread
 // ------------------------------------------------------------------------------

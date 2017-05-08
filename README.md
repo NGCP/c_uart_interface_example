@@ -12,7 +12,8 @@ added mission several different mission commands
 	able to set and alter autonmous waypoints
 	added messages to help support this behavior
 	
-local ned removed because ardupilot fails to send local ned on start up.
+local ned init check removed because ardupilot fails to send local ned on start up.
+Arduplane does not support guided mode atm. Enabling offboard control will return unkown or unsupported command.
 
 ----------------------------------------------------------------------
 C-UART Interface Example
